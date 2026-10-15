@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gud Code Bio</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-color: #050505;
+            --text-main: #e0ffe0;
+            --text-muted: #88aa88;
+            --accent: #a8ffb2;
+            --accent-bright: #7dff8e;
+            --accent-glow: rgba(168, 255, 178, 0.4);
+            --terminal-bg: rgba(10, 15, 10, 0.85);
+            --border-color: #1a2e1a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+            cursor: crosshair;
+            position: relative;
+        }
+
+        /* --- ФОН: СЛОЙ 1 — ВИДЕО --- */
+        .bg-video {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            object-fit: cover;
+            z-index: -3;
+            opacity: 0.95;
+            pointer-events: none;
+            filter: contrast(1.05);
+        }
+
+        .bg-video-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5, 5, 5, 0.15);
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        /* --- ФОН: СЛОЙ 2 — МАТРИЦА --- */
+        #matrix-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%);
+            background-size: 100% 4px;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.25;
+        }
+
+        .vignette {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 45%, rgba(0,0,0,0.75) 100%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .mono { font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; }
+
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes glitch {
+            0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); } 100% { transform: translate(0); }
+        }
+        @keyframes pulse-glow {
+            0%,100% { filter: drop-shadow(0 0 15px rgba(168,255,178,0.3)); }
+            50% { filter: drop-shadow(0 0 35px rgba(168,255,178,0.7)); }
+        }
+
+        .hero {
+            min-height: 85vh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center;
+            padding: 3rem 2rem 1rem 2rem;
+            position: relative; z-index: 1;
+        }
+
+        .logo-container {
+            width: 240px; height: 240px;
+            margin-bottom: 2rem;
+            position: relative;
+            animation: pulse-glow 4s infinite alternate;
+        }
+        .logo-container img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            transition: filter 0.3s ease;
+        }
+        .logo-container:hover img { animation: glitch 0.3s linear infinite; }
+
+        .hero h1 {
+            font-size: 4rem; letter-spacing: 6px;
+            margin-bottom: 1rem; text-transform: uppercase;
+            text-shadow: 0 0 10px var(--accent-glow), 0 0 20px var(--accent-glow), 0 0 4px #000;
+        }
+        .hero .subtitle {
+            font-size: 1.2rem; color: var(--text-muted);
+            margin-bottom: 3rem; height: 1.5em;
+            text-shadow: 0 0 4px #000;
+        }
+
+        .cursor {
+            display: inline-block; width: 10px; height: 1.2em;
+            background-color: var(--accent); vertical-align: middle;
+            animation: blink 1s step-end infinite;
+            margin-left: 5px; box-shadow: 0 0 8px var(--accent);
+        }
+
+        .btn-wrapper { position: relative; display: inline-block; }
+
+        .btn {
+            display: inline-block; padding: 14px 36px;
+            border: 1px solid var(--accent); color: var(--accent);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            background: rgba(5, 5, 5, 0.75);
+            cursor: pointer; position: relative; overflow: hidden;
+            box-shadow: 0 0 10px rgba(168,255,178,0.1);
+            user-select: none;
+        }
+        .btn::before {
+            content: ''; position: absolute; top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(168,255,178,0.2), transparent);
+            transition: left 0.5s;
+        }
+        .btn:hover::before { left: 100%; }
+        .btn:hover {
+            background: var(--accent); color: var(--bg-color);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .shatter-fragment {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5, 5, 5, 0.9);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+            will-change: transform, opacity;
+        }
+
+        .scroll-indicator {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem; opacity: 0.7;
+            animation: blink 2s ease-in-out infinite;
+            text-align: center;
+            text-shadow: 0 0 4px #000;
+        }
+        .scroll-indicator::after {
+            content: '▼'; display: block; margin-top: 5px; font-size: 0.9rem;
+        }
+
+        .section {
+            padding: 5rem 2rem; max-width: 900px; margin: 0 auto;
+            position: relative; z-index: 1;
+        }
+        .section-title {
+            font-size: 2rem; margin-bottom: 2rem;
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent-glow), 0 0 4px #000;
+        }
+
+        .terminal-window {
+            background-color: var(--terminal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px; overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 20px rgba(168,255,178,0.05);
+            backdrop-filter: blur(8px);
+        }
+        .terminal-header {
+            background-color: #0d0d0d; padding: 12px 15px;
+            display: flex; gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+        }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot.red { background: #ff5f56; box-shadow: 0 0 8px #ff5f56; }
+        .dot.yellow { background: #ffbd2e; box-shadow: 0 0 8px #ffbd2e; }
+        .dot.green { background: #27c93f; box-shadow: 0 0 8px #27c93f; }
+
+        .terminal-title {
+            margin-left: auto; color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+        }
+        .terminal-body {
+            padding: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.8;
+        }
+        .terminal-body .keyword { color: #ff79c6; }
+        .terminal-body .string { color: #f1fa8c; }
+        .terminal-body .variable { color: #8be9fd; }
+        .terminal-body .comment { color: #6272a4; }
+        .terminal-body .type { color: #ffb86c; }
+        .terminal-body a {
+            color: var(--accent); text-decoration: none;
+            border-bottom: 1px dashed var(--accent); transition: all 0.3s;
+        }
+        .terminal-body a:hover {
+            text-shadow: 0 0 10px var(--accent-glow);
+            border-bottom-style: solid;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem; margin-top: 2rem;
+        }
+        .service-card {
+            border: 1px solid var(--border-color);
+            padding: 2rem 2rem 0 2rem;
+            transition: all 0.3s ease;
+            background: rgba(10, 15, 10, 0.8);
+            backdrop-filter: blur(8px);
+            position: relative; overflow: hidden;
+            text-decoration: none; color: inherit;
+            display: flex; flex-direction: column;
+            cursor: pointer; min-height: 220px;
+        }
+        .service-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-5px);
+            box-shadow: 0 5px 25px rgba(168,255,178,0.15);
+        }
+        .service-card h3 {
+            color: var(--accent); margin-bottom: 1rem; font-size: 1.2rem;
+        }
+        .service-card p {
+            color: var(--text-muted); font-size: 0.9rem; flex-grow: 1;
+        }
+        .service-card .service-arrow {
+            display: block; margin-top: auto;
+            padding: 12px 2rem;
+            margin-left: -2rem; margin-right: -2rem;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            background: rgba(168,255,178,0.05);
+            text-align: center; transition: all 0.3s;
+        }
+        .service-card:hover .service-arrow {
+            background: rgba(168,255,178,0.15);
+            color: var(--accent-bright);
+            text-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .store-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem; margin-top: 2rem;
+        }
+        .store-card {
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            background: rgba(10, 15, 10, 0.8);
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease; position: relative;
+        }
+        .store-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 5px 25px rgba(168,255,178,0.15);
+        }
+        .store-card h3 {
+            color: var(--accent); margin-bottom: 0.5rem; font-size: 1.1rem;
+        }
+        .store-card .app-meta {
+            color: var(--text-muted); font-size: 0.85rem;
+            margin-bottom: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .store-card .app-desc {
+            color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;
+        }
+        .store-link {
+            display: inline-block; color: var(--accent);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            border-bottom: 1px dashed var(--accent);
+            transition: all 0.3s;
+        }
+        .store-link:hover {
+            text-shadow: 0 0 10px var(--accent-glow);
+            border-bottom-style: solid;
+        }
+
+        .footer {
+            text-align: center; padding: 4rem 2rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 4rem;
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(8px);
+            position: relative; z-index: 1;
+        }
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem; max-width: 700px;
+            margin: 0 auto 3rem auto;
+        }
+        .contact-card {
+            border: 1px solid var(--border-color);
+            padding: 1.8rem 1.5rem;
+            background: rgba(10, 15, 10, 0.8);
+            backdrop-filter: blur(8px);
+            text-decoration: none; color: var(--text-main);
+            transition: all 0.3s ease;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 0.5rem;
+        }
+        .contact-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-5px);
+            box-shadow: 0 5px 25px rgba(168,255,178,0.2);
+            color: var(--accent);
+        }
+        .contact-card .contact-icon {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem; color: var(--accent);
+            margin-bottom: 0.3rem;
+        }
+        .contact-card .contact-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem; color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+        .contact-card .contact-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem; color: var(--text-main);
+            word-break: break-all;
+        }
+        .copyright { color: var(--text-muted); font-size: 0.8rem; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.2rem; letter-spacing: 3px; }
+            .logo-container { width: 160px; height: 160px; }
+            .hero { min-height: 80vh; padding: 2rem 1.5rem 1rem 1.5rem; }
+            .section { padding: 3.5rem 1.5rem; }
+            .terminal-body { padding: 1rem; font-size: 0.8rem; }
+            .hero .subtitle { font-size: 1rem; }
+            .service-card { padding: 1.5rem 1.5rem 0 1.5rem; }
+            .service-card .service-arrow { margin-left: -1.5rem; margin-right: -1.5rem; padding: 10px 1.5rem; }
+            .bg-video { opacity: 0.85; }
+        }
+    </style>
+</head>
+<body>
+
+    <video class="bg-video" autoplay muted loop playsinline>
+        <source src="video.mp4" type="video/mp4">
+    </video>
+    <div class="bg-video-overlay"></div>
+
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <header class="hero">
+        <div class="logo-container">
+            <img src="logo.png" alt="Gud Code Logo">
+        </div>
+        <h1 class="mono">GUD CODE</h1>
+        <div class="subtitle mono">
+            <span id="typewriter"></span><span class="cursor"></span>
+        </div>
+        <div class="btn-wrapper" id="shatterBtnWrapper">
+            <a href="#contact" class="btn" id="shatterBtn">[ СВЯЗАТЬСЯ ]</a>
+        </div>
+        <div class="scroll-indicator mono">ЛИСТАЙ ВНИЗ</div>
+    </header>
+
+    <section class="section" id="about">
+        <h2 class="section-title mono">> Обо мне</h2>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+                <span class="terminal-title">developer.kt</span>
+            </div>
+            <div class="terminal-body">
+                <span class="comment">// Инициализация профиля разработчика</span><br>
+                <span class="keyword">val</span> <span class="variable">developer</span> = <span class="type">Developer</span>(<br>
+                &nbsp;&nbsp;name = <span class="string">"Gud Code"</span>,<br>
+                &nbsp;&nbsp;role = <span class="string">"Full-Stack разработчик прикладного ПО"</span>,<br>
+                &nbsp;&nbsp;skills = listOf(<span class="string">"Разработка полноценного ПО"</span>),<br>
+                &nbsp;&nbsp;philosophy = <span class="string">"Хьюманизируем ИИ слоп"</span>,<br>
+                &nbsp;&nbsp;legal = <a href="https://check.tochka.com/company/326344300015165/" target="_blank">"ИП (реквизиты)"</a><br>
+                )
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="services">
+        <h2 class="section-title mono">> Услуги</h2>
+        <div class="services-grid">
+            <a href="https://t.me/neforid" target="_blank" class="service-card">
+                <h3 class="mono">Разработка ПО</h3>
+                <p>Создание прикладного программного обеспечения под ключ: от идеи до релиза.</p>
+                <span class="service-arrow">→ обсудить в Telegram</span>
+            </a>
+            <a href="https://t.me/neforid" target="_blank" class="service-card">
+                <h3 class="mono">Создание документации</h3>
+                <p>Написание технической документации, руководств пользователя и спецификаций.</p>
+                <span class="service-arrow">→ обсудить в Telegram</span>
+            </a>
+            <a href="https://t.me/neforid" target="_blank" class="service-card">
+                <h3 class="mono">Тестирование</h3>
+                <p>Функциональное, нагрузочное и регрессионное тестирование программных продуктов.</p>
+                <span class="service-arrow">→ обсудить в Telegram</span>
+            </a>
+            <a href="https://t.me/neforid" target="_blank" class="service-card">
+                <h3 class="mono">Рефераты / Курсовые / Дипломы</h3>
+                <p>Написание академических работ по программированию, ИТ и смежным дисциплинам.</p>
+                <span class="service-arrow">→ обсудить в Telegram</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="section" id="store">
+        <h2 class="section-title mono">> Площадки</h2>
+        <p class="mono" style="color: var(--text-muted); margin-bottom: 2rem;">Приложения разработчика Gud Code в RuStore</p>
+        <div class="store-grid">
+            <div class="store-card">
+                <h3>ВК видео загрузчик</h3>
+                <div class="app-meta">Установок: 3+ тыс | Рейтинг: 4.4</div>
+                <p class="app-desc">Лёгкое шустрое приложение, которое напрямую скачивает видео по ссылке из ВК:видео.</p>
+                <a href="https://www.rustore.ru/catalog/app/com.example.vkdownloadervideo" class="store-link" target="_blank">Открыть в RuStore →</a>
+            </div>
+            <div class="store-card">
+                <h3>Видео загрузчик Тик ток</h3>
+                <div class="app-meta">Установок: 1+ тыс</div>
+                <p class="app-desc">Лёгкое быстрое приложение для скачки видео из тик тока по ссылке.</p>
+                <a href="https://www.rustore.ru/catalog/app/com.example.ttdownloadervideo" class="store-link" target="_blank">Открыть в RuStore →</a>
+            </div>
+            <div class="store-card">
+                <h3>Сикс севен кликер 67</h3>
+                <div class="app-meta">Установок: до 1 тыс | Рейтинг: 5.0</div>
+                <p class="app-desc">Кликер Six Seven теперь в RuStore! Кликай на 6 и 7 поочередно, слушая легендарный мем.</p>
+                <a href="https://www.rustore.ru/catalog/app/com.example.sixsevenclicker" class="store-link" target="_blank">Открыть в RuStore →</a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer" id="contact">
+        <h2 class="section-title mono" style="justify-content: center;">> Установить соединение</h2>
+        <div class="contact-grid">
+            <a href="https://t.me/neforid" target="_blank" class="contact-card">
+                <span class="contact-icon">[ TG ]</span>
+                <span class="contact-label">TELEGRAM</span>
+                <span class="contact-value">@neforid</span>
+            </a>
+            <a href="mailto:gudcodegames@mail.ru" class="contact-card">
+                <span class="contact-icon">[ @ ]</span>
+                <span class="contact-label">EMAIL</span>
+                <span class="contact-value">gudcodegames@mail.ru</span>
+            </a>
+            <a href="https://www.rustore.ru/catalog/developer/t96qtevp" target="_blank" class="contact-card">
+                <span class="contact-icon">[ RS ]</span>
+                <span class="contact-label">RUSTORE</span>
+                <span class="contact-value">Gud Code</span>
+            </a>
+        </div>
+        <p class="copyright mono">© 2026 Gud Code. Прав только я.</p>
+    </footer>
+
+    <script>
+        // ==========================================
+        // МАТРИЦА С РУЧНЫМИ ХВОСТАМИ
+        // ==========================================
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const chars = 'GUDCODE01{}[]()<>=+-*/&|!?;:.,'.split('');
+        const fontSize = 16;
+        const TAIL_LENGTH = 8;
+
+        let columns = 0;
+        let drops = [];
+        let angles = [];
+        let speeds = [];
+
+        function initMatrix() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            columns = Math.ceil(canvas.width / fontSize) + 20;
+            drops = []; angles = []; speeds = [];
+
+            for (let x = 0; x < columns; x++) {
+                drops[x] = Math.random() * -50;
+                angles[x] = (15 + Math.random() * 10) * Math.PI / 180;
+                speeds[x] = 0.6 + Math.random() * 0.6;
+            }
+        }
+
+        window.addEventListener('resize', initMatrix);
+        initMatrix();
+
+        function drawMatrix() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < columns; i++) {
+                for (let t = 0; t < TAIL_LENGTH; t++) {
+                    const row = Math.floor(drops[i]) - t;
+                    if (row < 0) continue;
+
+                    const y = row * fontSize;
+                    const x = i * fontSize;
+                    const diagonalOffset = Math.sin(angles[i]) * y;
+                    const drawX = x + diagonalOffset;
+
+                    if (drawX < -fontSize || drawX > canvas.width + fontSize) continue;
+
+                    const text = chars[Math.floor(Math.random() * chars.length)];
+
+                    if (t === 0) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.shadowColor = '#a8ffb2';
+                        ctx.shadowBlur = 12;
+                    } else {
+                        const alpha = (1 - t / TAIL_LENGTH) * 0.9;
+                        ctx.fillStyle = `rgba(168, 255, 178, ${alpha})`;
+                        ctx.shadowColor = '#a8ffb2';
+                        ctx.shadowBlur = t < 3 ? 6 : 0;
+                    }
+                    ctx.fillText(text, drawX, y);
+                }
+                ctx.shadowBlur = 0;
+
+                drops[i] += speeds[i];
+
+                if (drops[i] * fontSize > canvas.height + 300 && Math.random() > 0.98) {
+                    drops[i] = Math.random() * -20;
+                    angles[i] = (15 + Math.random() * 10) * Math.PI / 180;
+                    speeds[i] = 0.6 + Math.random() * 0.6;
+                }
+            }
+        }
+
+        let matrixInterval = setInterval(drawMatrix, 50);
+
+        // ==========================================
+        // TYPEWRITER
+        // ==========================================
+        const textArray = [
+            "> Инициализация...",
+            "> Разработка...",
+            "> Деплой...",
+            "> Хьюманизируем ИИ слоп."
+        ];
+        let textIndex = 0, charIndex = 0;
+        const typewriterElement = document.getElementById("typewriter");
+        let isDeleting = false;
+
+        function type() {
+            const currentText = textArray[textIndex];
+            if (isDeleting) {
+                typewriterElement.textContent = currentText.substring(0, charIndex - 1);
+                charIndex--;
+            } else {
+                typewriterElement.textContent = currentText.substring(0, charIndex + 1);
+                charIndex++;
+            }
+            let typeSpeed = isDeleting ? 30 : 80;
+            if (!isDeleting && charIndex === currentText.length) {
+                typeSpeed = 2000; isDeleting = true;
+            } else if (isDeleting && charIndex === 0) {
+                isDeleting = false;
+                textIndex = (textIndex + 1) % textArray.length;
+                typeSpeed = 500;
+            }
+            setTimeout(type, typeSpeed);
+        }
+        document.addEventListener("DOMContentLoaded", () => setTimeout(type, 1000));
+
+        // ==========================================
+        // SHATTER BUTTON
+        // ==========================================
+        const btn = document.getElementById('shatterBtn');
+        const btnWrapper = document.getElementById('shatterBtnWrapper');
+        let isShattering = false;
+
+        btn.addEventListener('click', function(e) {
+            if (isShattering) return;
+            e.preventDefault();
+            isShattering = true;
+
+            const rect = btn.getBoundingClientRect();
+            const btnText = btn.textContent;
+            const fragmentsCount = 12;
+            const fragments = [];
+
+            for (let i = 0; i < fragmentsCount; i++) {
+                const fragment = document.createElement('div');
+                fragment.className = 'shatter-fragment';
+                fragment.textContent = btnText;
+
+                const shapes = [
+                    'polygon(0 0, 50% 0, 0 50%)',
+                    'polygon(50% 0, 100% 0, 100% 50%)',
+                    'polygon(0 50%, 50% 0, 50% 50%)',
+                    'polygon(50% 0, 100% 50%, 50% 50%)',
+                    'polygon(0 50%, 50% 50%, 0 100%)',
+                    'polygon(50% 50%, 100% 50%, 100% 100%)',
+                    'polygon(0 100%, 50% 50%, 50% 100%)',
+                    'polygon(50% 50%, 100% 100%, 50% 100%)',
+                    'polygon(25% 0, 75% 0, 50% 50%)',
+                    'polygon(0 25%, 50% 50%, 0 75%)',
+                    'polygon(100% 25%, 50% 50%, 100% 75%)',
+                    'polygon(25% 100%, 75% 100%, 50% 50%)'
+                ];
+                fragment.style.clipPath = shapes[i];
+                fragment.style.width = rect.width + 'px';
+                fragment.style.height = rect.height + 'px';
+                fragment.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s ease-out';
+                fragment.style.opacity = '1';
+
+                btnWrapper.appendChild(fragment);
+                fragments.push(fragment);
+
+                const angle = (i / fragmentsCount) * Math.PI * 2 + Math.random() * 0.5;
+                const distance = 80 + Math.random() * 120;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance + 50;
+                const rot = (Math.random() - 0.5) * 360;
+
+                requestAnimationFrame(() => {
+                    fragment.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(0.6)`;
+                    fragment.style.opacity = '0';
+                });
+            }
+            btn.style.visibility = 'hidden';
+
+            setTimeout(() => {
+                fragments.forEach(f => f.remove());
+                btn.style.visibility = 'visible';
+                isShattering = false;
+                document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+            }, 850);
+        });
+
+        // ==========================================
+        // ПАСХАЛКИ: G и P
+        // ==========================================
+        let isFast = false;
+        let isPulsing = false;
+
+        // Проверка, что пользователь не в поле ввода и не зажаты модификаторы
+        function shouldIgnoreKey(e) {
+            const tag = document.activeElement && document.activeElement.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable) return true;
+            if (e.ctrlKey || e.altKey || e.metaKey) return true;
+            return false;
+        }
+
+        // Эффект G — ускорение матрицы
+        function activateFastMatrix() {
+            if (isFast) return;
+            isFast = true;
+
+            clearInterval(matrixInterval);
+            matrixInterval = setInterval(drawMatrix, 15);
+
+            document.body.style.transition = 'filter 0.2s';
+            document.body.style.filter = 'hue-rotate(90deg) brightness(1.5)';
+            setTimeout(() => { document.body.style.filter = 'none'; }, 300);
+
+            setTimeout(() => {
+                clearInterval(matrixInterval);
+                matrixInterval = setInterval(drawMatrix, 50);
+                isFast = false;
+            }, 3000);
+        }
+
+        // Эффект P — инверсия + ускорение
+        function activatePulseMatrix() {
+            if (isPulsing) return;
+            isPulsing = true;
+
+            const prevInterval = matrixInterval;
+            clearInterval(matrixInterval);
+            matrixInterval = setInterval(drawMatrix, 20);
+
+            document.body.style.transition = 'filter 0.3s';
+            document.body.style.filter = 'invert(1) hue-rotate(180deg)';
+
+            setTimeout(() => {
+                document.body.style.filter = 'none';
+            }, 1200);
+
+            setTimeout(() => {
+                clearInterval(matrixInterval);
+                matrixInterval = setInterval(drawMatrix, 50);
+                isPulsing = false;
+            }, 2500);
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (shouldIgnoreKey(e)) return;
+
+            if (e.code === 'KeyG') {
+                e.preventDefault();
+                activateFastMatrix();
+            } else if (e.code === 'KeyP') {
+                e.preventDefault();
+                activatePulseMatrix();
+            }
+        });
+    </script>
+</body>
+</html>
