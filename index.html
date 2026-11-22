@@ -29,7 +29,6 @@
             position: relative;
         }
 
-        /* --- ФОН: СЛОЙ 1 — ВИДЕО --- */
         .bg-video {
             position: fixed;
             top: 0; left: 0;
@@ -50,12 +49,19 @@
             pointer-events: none;
         }
 
-        /* --- ФОН: СЛОЙ 2 — МАТРИЦА --- */
         #matrix-canvas {
             position: fixed;
             top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: -1;
+            pointer-events: none;
+        }
+
+        #fx-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 9999;
             pointer-events: none;
         }
 
@@ -390,6 +396,7 @@
     <div class="bg-video-overlay"></div>
 
     <canvas id="matrix-canvas"></canvas>
+    <canvas id="fx-canvas"></canvas>
 
     <div class="scanlines"></div>
     <div class="vignette"></div>
@@ -448,11 +455,6 @@
                 <p>Функциональное, нагрузочное и регрессионное тестирование программных продуктов.</p>
                 <span class="service-arrow">→ обсудить в Telegram</span>
             </a>
-            <a href="https://t.me/neforid" target="_blank" class="service-card">
-                <h3 class="mono">Рефераты / Курсовые / Дипломы</h3>
-                <p>Написание академических работ по программированию, ИТ и смежным дисциплинам.</p>
-                <span class="service-arrow">→ обсудить в Telegram</span>
-            </a>
         </div>
     </section>
 
@@ -462,19 +464,19 @@
         <div class="store-grid">
             <div class="store-card">
                 <h3>ВК видео загрузчик</h3>
-                <div class="app-meta">Установок: 3+ тыс | Рейтинг: 4.4</div>
+                <div class="app-meta" id="meta-vk">Установок: 3+ тыс | Рейтинг: 4.4</div>
                 <p class="app-desc">Лёгкое шустрое приложение, которое напрямую скачивает видео по ссылке из ВК:видео.</p>
                 <a href="https://www.rustore.ru/catalog/app/com.example.vkdownloadervideo" class="store-link" target="_blank">Открыть в RuStore →</a>
             </div>
             <div class="store-card">
                 <h3>Видео загрузчик Тик ток</h3>
-                <div class="app-meta">Установок: 1+ тыс</div>
+                <div class="app-meta" id="meta-tt">Установок: 1+ тыс</div>
                 <p class="app-desc">Лёгкое быстрое приложение для скачки видео из тик тока по ссылке.</p>
                 <a href="https://www.rustore.ru/catalog/app/com.example.ttdownloadervideo" class="store-link" target="_blank">Открыть в RuStore →</a>
             </div>
             <div class="store-card">
                 <h3>Сикс севен кликер 67</h3>
-                <div class="app-meta">Установок: до 1 тыс | Рейтинг: 5.0</div>
+                <div class="app-meta" id="meta-ss">Установок: до 1 тыс | Рейтинг: 5.0</div>
                 <p class="app-desc">Кликер Six Seven теперь в RuStore! Кликай на 6 и 7 поочередно, слушая легендарный мем.</p>
                 <a href="https://www.rustore.ru/catalog/app/com.example.sixsevenclicker" class="store-link" target="_blank">Открыть в RuStore →</a>
             </div>
@@ -504,9 +506,6 @@
     </footer>
 
     <script>
-        // ==========================================
-        // МАТРИЦА С РУЧНЫМИ ХВОСТАМИ
-        // ==========================================
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
 
@@ -580,9 +579,6 @@
 
         let matrixInterval = setInterval(drawMatrix, 50);
 
-        // ==========================================
-        // TYPEWRITER
-        // ==========================================
         const textArray = [
             "> Инициализация...",
             "> Разработка...",
@@ -614,9 +610,6 @@
         }
         document.addEventListener("DOMContentLoaded", () => setTimeout(type, 1000));
 
-        // ==========================================
-        // SHATTER BUTTON
-        // ==========================================
         const btn = document.getElementById('shatterBtn');
         const btnWrapper = document.getElementById('shatterBtnWrapper');
         let isShattering = false;
@@ -680,13 +673,9 @@
             }, 850);
         });
 
-        // ==========================================
-        // ПАСХАЛКИ: G и P
-        // ==========================================
         let isFast = false;
         let isPulsing = false;
 
-        // Проверка, что пользователь не в поле ввода и не зажаты модификаторы
         function shouldIgnoreKey(e) {
             const tag = document.activeElement && document.activeElement.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable) return true;
@@ -694,7 +683,6 @@
             return false;
         }
 
-        // Эффект G — ускорение матрицы
         function activateFastMatrix() {
             if (isFast) return;
             isFast = true;
@@ -713,12 +701,10 @@
             }, 3000);
         }
 
-        // Эффект P — инверсия + ускорение
         function activatePulseMatrix() {
             if (isPulsing) return;
             isPulsing = true;
 
-            const prevInterval = matrixInterval;
             clearInterval(matrixInterval);
             matrixInterval = setInterval(drawMatrix, 20);
 
@@ -747,6 +733,227 @@
                 activatePulseMatrix();
             }
         });
+
+        async function fetchRuStoreData() {
+            const apps = [
+                { id: 'vk', package: 'com.example.vkdownloadervideo', metaId: 'meta-vk' },
+                { id: 'tt', package: 'com.example.ttdownloadervideo', metaId: 'meta-tt' },
+                { id: 'ss', package: 'com.example.sixsevenclicker', metaId: 'meta-ss' }
+            ];
+
+            for (const app of apps) {
+                try {
+                    const resp = await fetch(`https://backapi.rustore.ru/applicationData/overallInfo/${app.package}`);
+                    if (!resp.ok) continue;
+
+                    const data = await resp.json();
+                    const body = data.body;
+                    if (!body) continue;
+
+                    const rating = body.rating;
+                    const downloads = body.downloads;
+                    const ratingCount = body.ratingCount;
+
+                    const metaEl = document.getElementById(app.metaId);
+                    if (metaEl && (rating !== undefined || downloads !== undefined)) {
+                        let text = '';
+                        if (downloads !== undefined) {
+                            let dText = downloads >= 1000 ? (Math.floor(downloads / 1000) + '+ тыс') : downloads + '+';
+                            text += `Установок: ${dText}`;
+                        }
+                        if (rating !== undefined && rating > 0) {
+                            if (text) text += ' | ';
+                            text += `Рейтинг: ${rating.toFixed(1)}`;
+                            if (ratingCount !== undefined) text += ` (${ratingCount})`;
+                        }
+                        if (text) metaEl.textContent = text;
+                    }
+                } catch (e) {
+                    console.warn('Не удалось загрузить данные RuStore для', app.package, e);
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchRuStoreData();
+        });
+
+        const fxCanvas = document.getElementById('fx-canvas');
+        const fxCtx = fxCanvas.getContext('2d');
+
+        let particles = [];
+        let rings = [];
+        let mouseX = -1000, mouseY = -1000;
+        let lastX = -1000, lastY = -1000;
+        let hasMoved = false;
+
+        function resizeFx() {
+            fxCanvas.width = window.innerWidth;
+            fxCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeFx);
+        resizeFx();
+
+        const GLYPHS = '01{}[]<>/\\|=+-*'.split('');
+
+        function spawnTrail(x, y, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 10,
+                    y: y + (Math.random() - 0.5) * 10,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2 - 0.4,
+                    life: 1,
+                    decay: 0.015 + Math.random() * 0.025,
+                    size: 2 + Math.random() * 3,
+                    glyph: Math.random() > 0.55 ? GLYPHS[Math.floor(Math.random() * GLYPHS.length)] : null,
+                    rot: Math.random() * Math.PI * 2,
+                    spin: (Math.random() - 0.5) * 0.2
+                });
+            }
+        }
+
+        function spawnClickBurst(x, y) {
+            rings.push({ x, y, r: 0, maxR: 120 + Math.random() * 60, life: 1, width: 2 });
+            rings.push({ x, y, r: 0, maxR: 70 + Math.random() * 40, life: 1, width: 1.5 });
+
+            const count = 26;
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2 + Math.random() * 0.3;
+                const speed = 2 + Math.random() * 5;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    decay: 0.012 + Math.random() * 0.02,
+                    size: 2 + Math.random() * 3.5,
+                    glyph: Math.random() > 0.4 ? GLYPHS[Math.floor(Math.random() * GLYPHS.length)] : null,
+                    rot: Math.random() * Math.PI * 2,
+                    spin: (Math.random() - 0.5) * 0.35
+                });
+            }
+        }
+
+        document.addEventListener('mousemove', function(e) {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
+            if (!hasMoved) {
+                hasMoved = true;
+                lastX = mouseX;
+                lastY = mouseY;
+                return;
+            }
+
+            const dx = mouseX - lastX;
+            const dy = mouseY - lastY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 4) {
+                const n = Math.min(6, Math.floor(dist / 6) + 1);
+                spawnTrail(mouseX, mouseY, n);
+                lastX = mouseX;
+                lastY = mouseY;
+            }
+        });
+
+        document.addEventListener('mousedown', function(e) {
+            spawnClickBurst(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('touchmove', function(e) {
+            if (e.touches.length) {
+                const t = e.touches[0];
+                spawnTrail(t.clientX, t.clientY, 2);
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length) {
+                const t = e.touches[0];
+                spawnClickBurst(t.clientX, t.clientY);
+            }
+        }, { passive: true });
+
+        function renderFx() {
+            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.96;
+                p.vy *= 0.96;
+                p.vy += 0.02;
+                p.life -= p.decay;
+                p.rot += p.spin;
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                const alpha = Math.max(0, p.life);
+                fxCtx.save();
+                fxCtx.globalAlpha = alpha;
+                fxCtx.translate(p.x, p.y);
+                fxCtx.rotate(p.rot);
+                fxCtx.fillStyle = `rgba(168, 255, 178, ${alpha})`;
+                fxCtx.shadowColor = '#a8ffb2';
+                fxCtx.shadowBlur = 10 * alpha;
+
+                if (p.glyph) {
+                    fxCtx.font = `${Math.round(p.size * 3)}px monospace`;
+                    fxCtx.textAlign = 'center';
+                    fxCtx.textBaseline = 'middle';
+                    fxCtx.fillText(p.glyph, 0, 0);
+                } else {
+                    fxCtx.beginPath();
+                    fxCtx.arc(0, 0, p.size, 0, Math.PI * 2);
+                    fxCtx.fill();
+                }
+                fxCtx.restore();
+            }
+
+            for (let i = rings.length - 1; i >= 0; i--) {
+                const r = rings[i];
+                r.r += (r.maxR - r.r) * 0.12 + 1;
+                r.life -= 0.03;
+
+                if (r.life <= 0 || r.r > r.maxR + 5) {
+                    rings.splice(i, 1);
+                    continue;
+                }
+
+                const alpha = Math.max(0, r.life);
+                fxCtx.save();
+                fxCtx.globalAlpha = alpha;
+                fxCtx.strokeStyle = `rgba(168, 255, 178, ${alpha})`;
+                fxCtx.lineWidth = r.width * r.life;
+                fxCtx.shadowColor = '#a8ffb2';
+                fxCtx.shadowBlur = 15 * alpha;
+                fxCtx.beginPath();
+                fxCtx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+                fxCtx.stroke();
+                fxCtx.restore();
+            }
+
+            if (hasMoved && mouseX > 0) {
+                fxCtx.save();
+                fxCtx.globalAlpha = 0.6;
+                fxCtx.fillStyle = 'rgba(168, 255, 178, 0.9)';
+                fxCtx.shadowColor = '#a8ffb2';
+                fxCtx.shadowBlur = 12;
+                fxCtx.beginPath();
+                fxCtx.arc(mouseX, mouseY, 2, 0, Math.PI * 2);
+                fxCtx.fill();
+                fxCtx.restore();
+            }
+
+            requestAnimationFrame(renderFx);
+        }
+
+        renderFx();
     </script>
 </body>
 </html>
